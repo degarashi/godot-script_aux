@@ -61,7 +61,13 @@ func _make_define(nodes: Array[Node]) -> void:
 			continue
 
 		var name := node.name
-		to_add.append("@onready var {} = %{}".format([_name_sanitize(name), name], "{}"))
+		var uni_name := "%" + name
+		var sc_name := "$" + str(scene_root.get_path_to(node))
+		to_add.append(
+			"@onready var {} = {}".format(
+				[_name_sanitize(name), uni_name if node.unique_name_in_owner else sc_name], "{}"
+			)
+		)
 
 	var code := scr.source_code
 	code = code.replace("\r\n", "\n")
