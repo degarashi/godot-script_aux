@@ -1,0 +1,127 @@
+@tool
+extends EditorPlugin
+
+const OLD_SOURCE_PREFIX = "old_source_"
+var context_menu: ContextMenu
+
+
+func _name_sanitize(name_str: String) -> String:
+	return name_str.replace("-", "_").to_lower()
+
+
+func _undo_code(id: int) -> void:
+	var eif := get_editor_interface()
+	var scene_root := eif.get_edited_scene_root()
+	var scr := scene_root.get_script() as GDScript
+	scr.source_code = scene_root.get_meta(OLD_SOURCE_PREFIX + str(id))
+	_rewrite_script(scr)
+
+
+func _do_code(id: int, code: String) -> void:
+	var eif := get_editor_interface()
+	var scene_root := eif.get_edited_scene_root()
+	var scr := scene_root.get_script() as GDScript
+	scene_root.set_meta(OLD_SOURCE_PREFIX + str(id), scr.source_code)
+	scr.source_code = code
+	_rewrite_script(scr)
+
+
+static func _rewrite_script(scr: GDScript) -> bool:
+	var ret := _store_string_to_file(scr.resource_path, scr.source_code)
+	scr.reload()
+	return ret
+
+
+static func _store_string_to_file(path: String, s: String) -> bool:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file:
+		file.store_string(s)
+		file.close()
+		return true
+	return false
+
+
+func _make_define(nodes: Array[Node]) -> void:
+	var eif := get_editor_interface()
+	var scene_root := eif.get_edited_scene_root()
+	var scr := scene_root.get_script() as GDScript
+	if scr == null:
+		eif.get_editor_toaster().push_toast(
+			"SceneRoot Node has no Script.", EditorToaster.SEVERITY_ERROR
+		)
+		return
+
+	var to_add: Array[String] = []
+	for node in nodes:
+		# Rootを除く
+		if node == scene_root:
+			if len(nodes) == 1:
+				eif.get_editor_toaster().push_toast("No code added.", EditorToaster.SEVERITY_INFO)
+				return
+			continue
+
+		var name := node.name
+		to_add.append("@onready var {} = %{}".format([_name_sanitize(name), name], "{}"))
+
+	var code := scr.source_code
+	code = code.replace("\r\n", "\n")
+	var lines := code.split("\n")
+	code = ""
+
+	# 既に記述がある物は省く
+	var actual_add: Array[String] = []
+	for toadd in to_add:
+		var found := false
+		for line in lines:
+			if toadd == line:
+				found = true
+				break
+		if not found:
+			actual_add.append(toadd)
+
+	to_add.clear()
+
+	if actual_add.is_empty():
+		eif.get_editor_toaster().push_toast("No code added.", EditorToaster.SEVERITY_INFO)
+		return
+
+	var undo_e := EditorInterface.get_editor_undo_redo()
+	undo_e.create_action("Make Define Nodes")
+	var undo_hist_id := undo_e.get_object_history_id(self)
+	var undo := undo_e.get_history_undo_redo(undo_hist_id)
+	var undo_id := undo.get_version()
+
+	# 先頭3行目に加える
+	var a := lines.slice(0, 2)
+	a.append_array(actual_add)
+	a.append_array(lines.slice(2))
+	undo_e.add_do_method(self, "_do_code", undo_id, "\n".join(a))
+	a.clear()
+	undo_e.add_undo_method(self, "_undo_code", undo_id)
+	undo_e.commit_action()
+
+
+func _mark_unique(nodes: Array[Node]) -> void:
+	var eif := get_editor_interface()
+	var scene_root := eif.get_edited_scene_root()
+	var undo := EditorInterface.get_editor_undo_redo()
+	undo.create_action("Mark Unique And Define Nodes")
+	for node in nodes:
+		if node == scene_root:
+			continue
+		if not node.unique_name_in_owner:
+			undo.add_do_property(node, "unique_name_in_owner", true)
+			undo.add_undo_property(node, "unique_name_in_owner", false)
+	_make_define(nodes)
+	undo.commit_action()
+
+
+func _enter_tree() -> void:
+	context_menu = ContextMenu.new()
+	context_menu.on_mark_unique.connect(_mark_unique)
+	context_menu.on_make_define.connect(_make_define)
+	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE, context_menu)
+
+
+func _exit_tree() -> void:
+	remove_context_menu_plugin(context_menu)
