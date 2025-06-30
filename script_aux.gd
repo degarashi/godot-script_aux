@@ -97,14 +97,20 @@ func _make_define(nodes: Array[Node]) -> void:
 	var undo := undo_e.get_history_undo_redo(undo_hist_id)
 	var undo_id := undo.get_version()
 
-	# 先頭3行目に加える
-	var a := lines.slice(0, 2)
+	# コード挿入位置の計算
+	var insert_pos := _search_insert_position(lines)
+	var a := lines.slice(0, insert_pos)
 	a.append_array(actual_add)
-	a.append_array(lines.slice(2))
+	a.append_array(lines.slice(insert_pos))
 	undo_e.add_do_method(self, "_do_code", undo_id, "\n".join(a))
 	a.clear()
 	undo_e.add_undo_method(self, "_undo_code", undo_id)
 	undo_e.commit_action()
+
+
+# とりあえず先頭3行目に加える
+static func _search_insert_position(_lines: Array[String]) -> int:
+	return 3
 
 
 func _mark_unique(nodes: Array[Node]) -> void:
