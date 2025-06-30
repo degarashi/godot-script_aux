@@ -108,8 +108,15 @@ func _make_define(nodes: Array[Node]) -> void:
 	undo_e.commit_action()
 
 
-# とりあえず先頭3行目に加える
-static func _search_insert_position(_lines: Array[String]) -> int:
+static func _search_insert_position(lines: Array[String]) -> int:
+	# @onready varで始まってる行を探す
+	var idx: int = 0
+	for line in lines:
+		if line.begins_with("@onready var"):
+			return idx
+		idx += 1
+
+	# とりあえず先頭3行目に加える
 	return 3
 
 
