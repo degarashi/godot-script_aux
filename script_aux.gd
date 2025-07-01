@@ -1,14 +1,9 @@
 @tool
 extends EditorPlugin
 
-const OLD_SOURCE_PREFIX = "old_source_"
-const OLD_SOURCE_CURSOR = "old_source_cur"
+const OLD_SOURCE = "dg_old_source"
 const INVALID_CHAR_FOR_NAME = ["-", "=", "+", "*", "?", ";"]
 var context_menu: ContextMenu
-
-
-static func _make_old_source_entry_name(idx: int) -> String:
-	return OLD_SOURCE_PREFIX + str(idx)
 
 
 static func _path_sanitize(name_str: String) -> String:
@@ -32,15 +27,14 @@ func _undo_code() -> void:
 	var scene_root := eif.get_edited_scene_root()
 	var scr := scene_root.get_script() as GDScript
 
-	var cur: int = scene_root.get_meta(OLD_SOURCE_CURSOR, -1)
-	if cur == -1:
+	var old_src: Array = scene_root.get_meta(OLD_SOURCE, [])
+	if old_src.is_empty():
 		eif.get_editor_toaster().push_toast(
 			"Internal Error (_undo_code())", EditorToaster.SEVERITY_ERROR
 		)
 		return
-	scr.source_code = scene_root.get_meta(_make_old_source_entry_name(cur))
-	scene_root.set_meta(_make_old_source_entry_name(cur), null)
-	scene_root.set_meta(OLD_SOURCE_CURSOR, cur - 1)
+	scr.source_code = old_src.pop_back()
+	scene_root.set_meta(OLD_SOURCE, old_src)
 	_rewrite_script(scr)
 
 
@@ -49,9 +43,9 @@ func _do_code(code: String) -> void:
 	var scene_root := eif.get_edited_scene_root()
 	var scr := scene_root.get_script() as GDScript
 
-	var id: int = scene_root.get_meta(OLD_SOURCE_CURSOR, -1)
-	scene_root.set_meta(OLD_SOURCE_CURSOR, id + 1)
-	scene_root.set_meta(_make_old_source_entry_name(id + 1), scr.source_code)
+	var old_src: Array = scene_root.get_meta(OLD_SOURCE, [])
+	old_src.append(scr.source_code)
+	scene_root.set_meta(OLD_SOURCE, old_src)
 	scr.source_code = code
 	_rewrite_script(scr)
 
