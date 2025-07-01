@@ -2,26 +2,43 @@
 extends EditorPlugin
 
 const OLD_SOURCE_PREFIX = "old_source_"
+const OLD_SOURCE_CURSOR = "old_source_cur"
 var context_menu: ContextMenu
+
+
+static func _make_old_source_entry_name(idx: int) -> String:
+	return OLD_SOURCE_PREFIX + str(idx)
 
 
 func _name_sanitize(name_str: String) -> String:
 	return name_str.replace("-", "_").to_lower()
 
 
-func _undo_code(id: int) -> void:
+func _undo_code() -> void:
 	var eif := get_editor_interface()
 	var scene_root := eif.get_edited_scene_root()
 	var scr := scene_root.get_script() as GDScript
-	scr.source_code = scene_root.get_meta(OLD_SOURCE_PREFIX + str(id))
+
+	var cur: int = scene_root.get_meta(OLD_SOURCE_CURSOR, -1)
+	if cur == -1:
+		eif.get_editor_toaster().push_toast(
+			"Internal Error (_undo_code())", EditorToaster.SEVERITY_ERROR
+		)
+		return
+	scr.source_code = scene_root.get_meta(_make_old_source_entry_name(cur))
+	scene_root.set_meta(_make_old_source_entry_name(cur), null)
+	scene_root.set_meta(OLD_SOURCE_CURSOR, cur - 1)
 	_rewrite_script(scr)
 
 
-func _do_code(id: int, code: String) -> void:
+func _do_code(code: String) -> void:
 	var eif := get_editor_interface()
 	var scene_root := eif.get_edited_scene_root()
 	var scr := scene_root.get_script() as GDScript
-	scene_root.set_meta(OLD_SOURCE_PREFIX + str(id), scr.source_code)
+
+	var id: int = scene_root.get_meta(OLD_SOURCE_CURSOR, -1)
+	scene_root.set_meta(OLD_SOURCE_CURSOR, id + 1)
+	scene_root.set_meta(_make_old_source_entry_name(id + 1), scr.source_code)
 	scr.source_code = code
 	_rewrite_script(scr)
 
@@ -41,7 +58,28 @@ static func _store_string_to_file(path: String, s: String) -> bool:
 	return false
 
 
-func _make_define(nodes: Array[Node]) -> void:
+func _get_selecting_nodes() -> Array[Node]:
+	var eif := get_editor_interface()
+	var sel := eif.get_selection()
+	return sel.get_selected_nodes()
+
+
+func _mark_unique(nodes: Array[Node]) -> void:
+	var scene_root := get_editor_interface().get_edited_scene_root()
+	var undo := EditorInterface.get_editor_undo_redo()
+	undo.create_action("Mark Unique")
+	for node in nodes:
+		if node == scene_root:
+			continue
+		if not node.unique_name_in_owner:
+			undo.add_do_property(node, "unique_name_in_owner", true)
+			undo.add_undo_property(node, "unique_name_in_owner", false)
+	undo.commit_action()
+
+
+func _make_define(mark_unique: bool) -> void:
+	var nodes := _get_selecting_nodes()
+
 	var eif := get_editor_interface()
 	var scene_root := eif.get_edited_scene_root()
 	var scr := scene_root.get_script() as GDScript
@@ -50,6 +88,9 @@ func _make_define(nodes: Array[Node]) -> void:
 			"SceneRoot Node has no Script.", EditorToaster.SEVERITY_ERROR
 		)
 		return
+
+	if mark_unique:
+		_mark_unique(nodes)
 
 	var to_add: Array[String] = []
 	for node in nodes:
@@ -93,18 +134,14 @@ func _make_define(nodes: Array[Node]) -> void:
 
 	var undo_e := EditorInterface.get_editor_undo_redo()
 	undo_e.create_action("Make Define Nodes")
-	var undo_hist_id := undo_e.get_object_history_id(self)
-	var undo := undo_e.get_history_undo_redo(undo_hist_id)
-	var undo_id := undo.get_version()
-
 	# コード挿入位置の計算
 	var insert_pos := _search_insert_position(lines)
 	var a := lines.slice(0, insert_pos)
 	a.append_array(actual_add)
 	a.append_array(lines.slice(insert_pos))
-	undo_e.add_do_method(self, "_do_code", undo_id, "\n".join(a))
+	undo_e.add_do_method(self, "_do_code", "\n".join(a))
 	a.clear()
-	undo_e.add_undo_method(self, "_undo_code", undo_id)
+	undo_e.add_undo_method(self, "_undo_code")
 	undo_e.commit_action()
 
 
@@ -120,24 +157,8 @@ static func _search_insert_position(lines: Array[String]) -> int:
 	return 3
 
 
-func _mark_unique(nodes: Array[Node]) -> void:
-	var eif := get_editor_interface()
-	var scene_root := eif.get_edited_scene_root()
-	var undo := EditorInterface.get_editor_undo_redo()
-	undo.create_action("Mark Unique And Define Nodes")
-	for node in nodes:
-		if node == scene_root:
-			continue
-		if not node.unique_name_in_owner:
-			undo.add_do_property(node, "unique_name_in_owner", true)
-			undo.add_undo_property(node, "unique_name_in_owner", false)
-	_make_define(nodes)
-	undo.commit_action()
-
-
 func _enter_tree() -> void:
 	context_menu = ContextMenu.new()
-	context_menu.on_mark_unique.connect(_mark_unique)
 	context_menu.on_make_define.connect(_make_define)
 	add_context_menu_plugin(EditorContextMenuPlugin.CONTEXT_SLOT_SCENE_TREE, context_menu)
 
