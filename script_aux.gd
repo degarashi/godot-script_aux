@@ -3,6 +3,7 @@ extends EditorPlugin
 
 const OLD_SOURCE_PREFIX = "old_source_"
 const OLD_SOURCE_CURSOR = "old_source_cur"
+const INVALID_CHAR_FOR_NAME = ["-", "=", "+", "*", "?", ";"]
 var context_menu: ContextMenu
 
 
@@ -10,8 +11,20 @@ static func _make_old_source_entry_name(idx: int) -> String:
 	return OLD_SOURCE_PREFIX + str(idx)
 
 
-func _name_sanitize(name_str: String) -> String:
-	return name_str.replace("-", "_").to_lower()
+static func _path_sanitize(name_str: String) -> String:
+	var ret := name_str
+	var has_invalid_ch: bool = false
+	for ch in INVALID_CHAR_FOR_NAME:
+		has_invalid_ch = has_invalid_ch or ret.contains(ch)
+	if has_invalid_ch:
+		return '"{}"'.format([ret], "{}")
+	return ret
+
+
+static func _name_sanitize(name_str: String) -> String:
+	for ch in INVALID_CHAR_FOR_NAME:
+		name_str = name_str.replace(ch, "")
+	return name_str.to_snake_case()
 
 
 func _undo_code() -> void:
@@ -102,8 +115,8 @@ func _make_define(mark_unique: bool) -> void:
 			continue
 
 		var name := node.name
-		var uni_name := "%" + name
-		var sc_name := "$" + str(scene_root.get_path_to(node))
+		var uni_name := "%" + _path_sanitize(name)
+		var sc_name := "$" + _path_sanitize(str(scene_root.get_path_to(node)))
 		to_add.append(
 			"@onready var {} = {}".format(
 				[_name_sanitize(name), uni_name if node.unique_name_in_owner else sc_name], "{}"
