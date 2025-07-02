@@ -84,6 +84,15 @@ func _mark_unique(nodes: Array[Node]) -> void:
 	undo.commit_action()
 
 
+static func _find_class_name(code: String, default: String) -> String:
+	var regex = RegEx.new()
+	regex.compile(r"^(?:(?:\.+\s+)|(?:))class_name\s+([\w_]+)")
+	var res := regex.search(code)
+	if res:
+		return res.get_string(1)
+	return default
+
+
 func _make_define(mark_unique: bool) -> void:
 	var nodes := _get_selecting_nodes()
 
@@ -111,9 +120,20 @@ func _make_define(mark_unique: bool) -> void:
 		var name := node.name
 		var uni_name := "%" + _path_sanitize(name)
 		var sc_name := "$" + _path_sanitize(str(scene_root.get_path_to(node)))
+
+		var cls_name := node.get_class()
+		var scr2 := node.get_script()
+		if scr2 != null:
+			cls_name = _find_class_name(scr2.source_code, cls_name)
+
 		to_add.append(
-			"@onready var {} = {}".format(
-				[_name_sanitize(name), uni_name if node.unique_name_in_owner else sc_name], "{}"
+			"@onready var {}: {} = {}".format(
+				[
+					_name_sanitize(name),
+					cls_name,
+					uni_name if node.unique_name_in_owner else sc_name
+				],
+				"{}"
 			)
 		)
 
