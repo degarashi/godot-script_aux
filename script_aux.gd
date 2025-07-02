@@ -3,6 +3,8 @@ extends EditorPlugin
 
 const OLD_SOURCE = "dg_old_source"
 var context_menu: ContextMenu
+var select_node_scene: PackedScene = preload("uid://deov35esmiv17")
+var sel_node_window: NodeTreeWindow
 
 
 func _undo_code() -> void:
@@ -54,31 +56,33 @@ func _mark_unique(nodes: Array[Node]) -> void:
 
 func _make_define(mark_unique: bool) -> void:
 	var nodes := _get_selecting_nodes()
+	var target_node := await _show_select_window(nodes)
+	if target_node == null:
+		return
 
 	var eif := get_editor_interface()
-	var scene_root := eif.get_edited_scene_root()
-	var scr := scene_root.get_script() as GDScript
-	if scr == null:
-		eif.get_editor_toaster().push_toast(
-			"SceneRoot Node has no Script.", EditorToaster.SEVERITY_ERROR
-		)
-		return
+	var scr := target_node.get_script() as GDScript
+	assert(scr != null)
+	# if scr == null:
+	# 	eif.get_editor_toaster().push_toast(
+	# 		"SceneRoot Node has no Script.", EditorToaster.SEVERITY_ERROR
+	# 	)
+	# 	return
 
 	if mark_unique:
 		_mark_unique(nodes)
 
 	var to_add: Array[String] = []
 	for node in nodes:
-		# Rootを除く
-		if node == scene_root:
-			if len(nodes) == 1:
-				eif.get_editor_toaster().push_toast("No code added.", EditorToaster.SEVERITY_INFO)
-				return
-			continue
+		# if node == target_node:
+		# 	if len(nodes) == 1:
+		# 		eif.get_editor_toaster().push_toast("No code added.", EditorToaster.SEVERITY_INFO)
+		# 		return
+		# 	continue
 
 		var name := node.name
 		var uni_name := "%" + DGAuxFunc.path_sanitize(name)
-		var sc_name := "$" + DGAuxFunc.path_sanitize(str(scene_root.get_path_to(node)))
+		var sc_name := "$" + DGAuxFunc.path_sanitize(str(target_node.get_path_to(node)))
 
 		var cls_name := node.get_class()
 		var scr2 := node.get_script()
@@ -141,6 +145,29 @@ static func _search_insert_position(lines: Array[String]) -> int:
 
 	# とりあえず先頭3行目に加える
 	return 3
+
+
+func _on_exited() -> void:
+	sel_node_window = null
+
+
+func _show_select_window(sel_nodes: Array[Node]) -> Node:
+	assert(sel_node_window == null)
+	var result: Array[Node] = []
+	sel_node_window = select_node_scene.instantiate()
+	sel_node_window.tree_exited.connect(_on_exited)
+	sel_node_window.on_ok_pressed.connect(func(node: Node): result.append(node))
+
+	var eif := get_editor_interface()
+	var scene_root := eif.get_edited_scene_root()
+	sel_node_window.setup(scene_root, sel_nodes)
+
+	add_child(sel_node_window)
+
+	# 中央位置調整
+	sel_node_window.popup_centered()
+	await sel_node_window.tree_exited
+	return result[0] if not result.is_empty() else null
 
 
 func _enter_tree() -> void:
