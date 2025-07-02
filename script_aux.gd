@@ -2,24 +2,7 @@
 extends EditorPlugin
 
 const OLD_SOURCE = "dg_old_source"
-const INVALID_CHAR_FOR_NAME = ["-", "=", "+", "*", "?", ";"]
 var context_menu: ContextMenu
-
-
-static func _path_sanitize(name_str: String) -> String:
-	var ret := name_str
-	var has_invalid_ch: bool = false
-	for ch in INVALID_CHAR_FOR_NAME:
-		has_invalid_ch = has_invalid_ch or ret.contains(ch)
-	if has_invalid_ch:
-		return '"{}"'.format([ret], "{}")
-	return ret
-
-
-static func _name_sanitize(name_str: String) -> String:
-	for ch in INVALID_CHAR_FOR_NAME:
-		name_str = name_str.replace(ch, "")
-	return name_str.to_snake_case()
 
 
 func _undo_code() -> void:
@@ -35,7 +18,7 @@ func _undo_code() -> void:
 		return
 	scr.source_code = old_src.pop_back()
 	scene_root.set_meta(OLD_SOURCE, old_src)
-	_rewrite_script(scr)
+	DGAuxFunc.rewrite_script(scr)
 
 
 func _do_code(code: String) -> void:
@@ -47,22 +30,7 @@ func _do_code(code: String) -> void:
 	old_src.append(scr.source_code)
 	scene_root.set_meta(OLD_SOURCE, old_src)
 	scr.source_code = code
-	_rewrite_script(scr)
-
-
-static func _rewrite_script(scr: GDScript) -> bool:
-	var ret := _store_string_to_file(scr.resource_path, scr.source_code)
-	scr.reload()
-	return ret
-
-
-static func _store_string_to_file(path: String, s: String) -> bool:
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file:
-		file.store_string(s)
-		file.close()
-		return true
-	return false
+	DGAuxFunc.rewrite_script(scr)
 
 
 func _get_selecting_nodes() -> Array[Node]:
@@ -82,15 +50,6 @@ func _mark_unique(nodes: Array[Node]) -> void:
 			undo.add_do_property(node, "unique_name_in_owner", true)
 			undo.add_undo_property(node, "unique_name_in_owner", false)
 	undo.commit_action()
-
-
-static func _find_class_name(code: String, default: String) -> String:
-	var regex = RegEx.new()
-	regex.compile(r"^(?:(?:\.+\s+)|(?:))class_name\s+([\w_]+)")
-	var res := regex.search(code)
-	if res:
-		return res.get_string(1)
-	return default
 
 
 func _make_define(mark_unique: bool) -> void:
@@ -118,18 +77,18 @@ func _make_define(mark_unique: bool) -> void:
 			continue
 
 		var name := node.name
-		var uni_name := "%" + _path_sanitize(name)
-		var sc_name := "$" + _path_sanitize(str(scene_root.get_path_to(node)))
+		var uni_name := "%" + DGAuxFunc.path_sanitize(name)
+		var sc_name := "$" + DGAuxFunc.path_sanitize(str(scene_root.get_path_to(node)))
 
 		var cls_name := node.get_class()
 		var scr2 := node.get_script()
 		if scr2 != null:
-			cls_name = _find_class_name(scr2.source_code, cls_name)
+			cls_name = DGAuxFunc.find_class_name(scr2.source_code, cls_name)
 
 		to_add.append(
 			"@onready var {}: {} = {}".format(
 				[
-					_name_sanitize(name),
+					DGAuxFunc.name_sanitize(name),
 					cls_name,
 					uni_name if node.unique_name_in_owner else sc_name
 				],
