@@ -41,3 +41,17 @@ static func find_class_name(code: String, default: String) -> String:
 	if res:
 		return res.get_string(1)
 	return default
+
+
+static func get_window_rect(id: int) -> Rect2i:
+	var size := DisplayServer.window_get_size(id)
+	var pos := DisplayServer.window_get_position(id)
+	return Rect2i(pos, size)
+
+
+static func calc_center_position(rect0: Rect2i, size1: Vector2i) -> Vector2i:
+	var size0 := rect0.size
+	if size0.x < size1.x or size0.y < size1.y:
+		return Vector2i.ZERO
+
+	return rect0.position + size0/2 - size1/2
