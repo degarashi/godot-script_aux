@@ -63,23 +63,12 @@ func _make_define(mark_unique: bool) -> void:
 	var eif := get_editor_interface()
 	var scr := target_node.get_script() as GDScript
 	assert(scr != null)
-	# if scr == null:
-	# 	eif.get_editor_toaster().push_toast(
-	# 		"SceneRoot Node has no Script.", EditorToaster.SEVERITY_ERROR
-	# 	)
-	# 	return
 
 	if mark_unique:
 		_mark_unique(nodes)
 
 	var to_add: Array[String] = []
 	for node in nodes:
-		# if node == target_node:
-		# 	if len(nodes) == 1:
-		# 		eif.get_editor_toaster().push_toast("No code added.", EditorToaster.SEVERITY_INFO)
-		# 		return
-		# 	continue
-
 		var name := node.name
 		var uni_name := "%" + DGAuxFunc.path_sanitize(name)
 		var sc_name := "$" + DGAuxFunc.path_sanitize(str(target_node.get_path_to(node)))
