@@ -20,13 +20,15 @@ static func _get_builtin_icon(icon_name: String) -> Texture2D:
 	return EditorInterface.get_editor_theme().get_icon(icon_name, "EditorIcons")
 
 
-static func _setup_item(node: Node, item: TreeItem) -> void:
+static func _setup_item(node: Node, item: TreeItem) -> bool:
 	item.set_text(0, node.name)
 	item.set_icon(0, _get_builtin_icon(node.get_class()))
 	item.set_metadata(0, node)
 	if node.get_script() == null:
 		item.set_custom_color(0, Color(1, 0.5, 0.5, 0.5))
 		item.set_selectable(0, false)
+		return false
+	return true
 
 
 static func _collect_ancestors(nodes: Array[Node]) -> Dictionary:
@@ -75,7 +77,9 @@ func _ready() -> void:
 	node_tree.item_selected.connect(_on_item_selected)
 
 	var root_item := node_tree.create_item()
-	_setup_item(_node_root, root_item)
+	if _setup_item(_node_root, root_item):
+		# もしルートノードがスクリプトを持っていた場合、自動的にフォーカスする
+		root_item.select(0)
 	_recursive_get(_node_root, root_item)
 
 
