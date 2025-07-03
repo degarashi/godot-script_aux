@@ -17,11 +17,3 @@ func _popup_menu(paths: PackedStringArray) -> void:
 
 func _on_submenu(id: int) -> void:
 	on_make_define.emit(id == 1)
-
-
-# func _make_unique_and_define(nodes: Array[Node]) -> void:
-# 	var to_mark: Array[Node] = []
-# 	for node in nodes:
-# 		if not node.unique_name_in_owner:
-# 			to_mark.append(node)
-# 	on_mark_unique.emit(nodes)
