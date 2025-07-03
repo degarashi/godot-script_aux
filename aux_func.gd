@@ -36,7 +36,7 @@ static func rewrite_script(scr: GDScript) -> bool:
 
 static func find_class_name(code: String, default: String) -> String:
 	var regex = RegEx.new()
-	regex.compile(r"^(?:(?:\.+\s+)|(?:))class_name\s+([\w_]+)")
+	regex.compile(r"(?m)^(?:(?:\.+\s+)|(?:))class_name\s+([\w_]+)")
 	var res := regex.search(code)
 	if res:
 		return res.get_string(1)
