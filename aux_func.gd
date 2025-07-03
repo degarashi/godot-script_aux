@@ -1,6 +1,15 @@
 class_name DGAuxFunc extends Object
 
-const INVALID_CHAR_FOR_NAME = ["-", "=", "+", "*", "?", ";"]
+const INVALID_CHAR_FOR_NAME = [
+	"[", "]",
+	"(", ")",
+	"-",
+	"=",
+	"+",
+	"*",
+	"?",
+	";",
+]
 
 
 static func path_sanitize(name_str: String) -> String:
