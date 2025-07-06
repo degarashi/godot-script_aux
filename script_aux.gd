@@ -74,9 +74,9 @@ func _make_define(mark_unique: bool) -> void:
 		var sc_name := "$" + DGAuxFunc.path_sanitize(str(target_node.get_path_to(node)))
 
 		var cls_name := node.get_class()
-		var scr2 := node.get_script()
+		var scr2 := node.get_script() as Script
 		if scr2 != null:
-			cls_name = DGAuxFunc.find_class_name(scr2.source_code, cls_name)
+			cls_name = scr2.get_global_name()
 
 		to_add.append(
 			"@onready var {}: {} = {}".format(
