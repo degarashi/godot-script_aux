@@ -43,15 +43,6 @@ static func rewrite_script(scr: GDScript) -> bool:
 	return ret
 
 
-static func find_class_name(code: String, default: String) -> String:
-	var regex = RegEx.new()
-	regex.compile(r"(?m)^(?:(?:\.+\s+)|(?:))class_name\s+([\w_]+)")
-	var res := regex.search(code)
-	if res:
-		return res.get_string(1)
-	return default
-
-
 static func get_window_rect(id: int) -> Rect2i:
 	var size := DisplayServer.window_get_size(id)
 	var pos := DisplayServer.window_get_position(id)
