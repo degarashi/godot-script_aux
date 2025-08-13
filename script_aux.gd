@@ -76,7 +76,9 @@ func _make_define(mark_unique: bool) -> void:
 		var cls_name := node.get_class()
 		var scr2 := node.get_script() as Script
 		if scr2 != null:
-			cls_name = scr2.get_global_name()
+			var glo_name := scr2.get_global_name()
+			if not glo_name.is_empty():
+				cls_name = glo_name
 
 		to_add.append(
 			"@onready var {}: {} = {}".format(
