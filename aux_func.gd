@@ -12,13 +12,17 @@ const INVALID_CHAR_FOR_NAME = [
 ]
 
 
+static func wrap_string_with_dq(s: String) -> String:
+	return '"' + s + '"'
+
+
 static func path_sanitize(name_str: String) -> String:
 	var ret := name_str
 	var has_invalid_ch: bool = false
 	for ch in INVALID_CHAR_FOR_NAME:
 		has_invalid_ch = has_invalid_ch or ret.contains(ch)
 	if has_invalid_ch:
-		return '"{}"'.format([ret], "{}")
+		return wrap_string_with_dq(ret)
 	return ret
 
 
@@ -54,4 +58,4 @@ static func calc_center_position(rect0: Rect2i, size1: Vector2i) -> Vector2i:
 	if size0.x < size1.x or size0.y < size1.y:
 		return Vector2i.ZERO
 
-	return rect0.position + size0/2 - size1/2
+	return rect0.position + size0 / 2 - size1 / 2
