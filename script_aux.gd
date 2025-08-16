@@ -71,7 +71,11 @@ func _make_define(mark_unique: bool) -> void:
 	for node in nodes:
 		var name := node.name
 		var uni_name := "%" + DGAuxFunc.path_sanitize(name)
-		var sc_name := "$" + DGAuxFunc.path_sanitize(str(target_node.get_path_to(node)))
+		var sc_name := DGAuxFunc.path_sanitize(str(target_node.get_path_to(node)))
+		# Sceneトップノードを指している場合は . になるので""で囲わなければならない
+		if sc_name == ".":
+			sc_name = DGAuxFunc.wrap_string_with_dq(sc_name)
+		sc_name = "$" + sc_name
 
 		var cls_name := node.get_class()
 		var scr2 := node.get_script() as Script
